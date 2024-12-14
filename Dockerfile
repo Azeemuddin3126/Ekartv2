@@ -5,7 +5,7 @@ FROM openjdk:11
 WORKDIR /app
 
 # Expose the application port (Ensure it matches the application's configured port)
-EXPOSE 8080
+EXPOSE 8085
 
 # Copy the built JAR file from the workspace's target directory into the image
 # This assumes the JAR file is named according to the Maven project's artifactId and version
