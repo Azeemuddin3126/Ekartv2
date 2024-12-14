@@ -1,0 +1,146 @@
+pipeline {
+    agent any
+    tools {
+        jdk 'jdk'
+        maven 'maven3'
+    }
+    environment {
+        SCANNER_HOME = tool 'sonar-scanner'
+        TRIVY_CACHE_DIR = "${WORKSPACE}/trivy-cache"
+    }
+    stages {
+        stage('Git Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Azeemuddin3126/Ekartv2.git'
+            }
+        }
+        stage('Compile') {
+            steps {
+                bat 'mvn clean compile'
+            }
+        }
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    bat """
+                    %SCANNER_HOME%\\bin\\sonar-scanner.bat ^
+                    -Dsonar.host.url=http://localhost:9000 ^
+                    -Dsonar.login=squ_4c340e33efc1b723faf7e01ea01cbb9ea9650cff ^
+                    -Dsonar.projectName=Ekart ^
+                    -Dsonar.projectKey=Ekart ^
+                    -Dsonar.java.binaries=src\\main\\java
+                    """
+                }
+            }
+        }
+        stage('Dependency Check with Trivy') {
+            steps {
+                script {
+                    try {
+                        bat """
+                            docker run --rm -v ${WORKSPACE}:/src aquasec/trivy fs --severity HIGH,CRITICAL --format json -o trivy-report.json /src
+                        """
+                    } catch (Exception e) {
+                        echo "Trivy scan encountered issues. Check the logs for details."
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: '**/target/*.jar, sonar-project.properties, trivy-report.json', allowEmptyArchive: true
+        }
+        success {
+            echo 'Build, SonarQube analysis, and Trivy scan were successful.'
+        }
+        failure {
+            echo 'Build, SonarQube analysis, or Trivy scan failed.'
+        }
+    }
+}
+
+
+
+
+
+
+
+
+pipeline {
+    agent any
+    tools {
+        jdk 'jdk'
+        maven 'maven3'
+    }
+    environment {
+        SCANNER_HOME = tool 'sonar-scanner'
+    }
+    stages {
+        stage('Git Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/jaiswaladi246/Ekart.git'
+            }
+        }
+        stage('Compile') {
+            steps {
+                bat 'mvn clean compile'
+            }
+        }
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    bat """
+                    %SCANNER_HOME%\\bin\\sonar-scanner.bat ^
+                    -Dsonar.host.url=http://localhost:9000 ^
+                    -Dsonar.login=squ_4c340e33efc1b723faf7e01ea01cbb9ea9650cff ^
+                    -Dsonar.projectName=Ekart ^
+                    -Dsonar.projectKey=Ekart ^
+                    -Dsonar.java.binaries=src\\main\\java
+                    """
+                }
+            }
+        }
+        stage('OWASP Check') {
+            steps {
+                dependencyCheck additionalArguments: '--scan ./', odcInstallation: 'dc'
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            }
+        }
+        stage('Build Application') {
+            steps {
+                bat 'mvn clean install -U -DskipTests'
+            }
+        }
+        stage('Build and Push Docker Image') {
+            steps {
+                script {
+                    withCredentials([[
+                        $class: 'UsernamePasswordMultiBinding', 
+                        credentialsId: 'docker', 
+                        usernameVariable: 'dockerUser', 
+                        passwordVariable: 'dockerPass'
+                    ]]) {
+                        bat """
+                        docker login -u %dockerUser% --password-stdin
+                        docker build -t shopping:latest -f Dockerfile .
+                        docker tag shopping:latest %dockerUser%/shopping:latest
+                        docker push %dockerUser%/shopping:latest
+                        """
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: '**/target/*.jar, sonar-project.properties', allowEmptyArchive: true
+        }
+        success {
+            echo 'Build and SonarQube analysis were successful.'
+        }
+        failure {
+            echo 'Build or SonarQube analysis failed.'
+        }
+    }
+}
