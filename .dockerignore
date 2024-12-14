@@ -1,0 +1,8 @@
+
+# Exclude everything:
+#
+*
+
+ # Now un-exclude jar and the target folder:
+#
+!pom.xml
