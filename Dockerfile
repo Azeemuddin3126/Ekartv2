@@ -4,4 +4,4 @@ EXPOSE 8085
 
 COPY . .
 
-ENTRYPOINT ["java","-jar","/spring-boot-docker.jar"]
+ENTRYPOINT ["java","-Dserver.port=9090","-jar","/spring-boot-docker.jar"]
